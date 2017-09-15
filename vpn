@@ -1,0 +1,59 @@
+#!/bin/bash
+#--------------------------------------------------------------------------------------------------
+# - vpn - A very simple vpn configuration manager for the shell -
+# License: GPLv3
+# (c) Benjamin Grüdelbach 
+# mailto: bennygr@gmx.net
+# http://bny.io
+#--------------------------------------------------------------------------------------------------
+echo
+echo "  __     ______  _   _  "
+echo "   \ \   / /  _ \| \ | |"
+echo "    \ \ / /| |_) |  \| |"
+echo "     \ V / |  __/| |\  |"
+echo "      \_/  |_|   |_| \_|"
+echo
+echo
+#--------------------------------------------------------------------------------------------------
+# Change file name to meet your needs
+fav_file="$HOME/.vpnfavs"
+#--------------------------------------------------------------------------------------------------
+if [ -f $fav_file ];
+then
+        echo "Reading vpn configurations from file \"$fav_file\"..."
+        readarray favs < $fav_file
+        echo "Available VPN connections:"
+        echo
+        if ((${#favs[@]} > 0));
+        then
+                i=0
+                for fav in "${favs[@]}"
+                do
+                    echo -n "$i) $fav"
+                    i=$((i+1))
+                done
+                echo
+                index_output="0"
+                if (($i > 1));
+                then
+                        index_output=(0-$(($i-1)))
+                fi
+                read -p "Please choose a VPN configuration to use ($index_output): " number
+
+                vpn_config="${favs[number]}"
+                echo
+                echo "Connecting with openvpn configuration $vpn_config"
+                sudo openvpn $vpn_config
+        else
+                echo "Error: No vpn configuration found in file $fav_file"
+                echo "Please fill the file \"$fav_file\" with one *.ovpn filename per line."
+                exit 1;
+        fi
+else
+        echo "Error: File \"$fav_file\" not found."
+        echo "Please create a file \"$fav_file\" containing one *.ovpn filename per line."
+        exit 2;
+fi
+
+#--------------------------------------------------------------------------------------------------
+#eof
