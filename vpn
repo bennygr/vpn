@@ -6,54 +6,132 @@
 # mailto: bennygr@gmx.net
 # http://bny.io
 #--------------------------------------------------------------------------------------------------
-echo
-echo "  __     ______  _   _  "
-echo "   \ \   / /  _ \| \ | |"
-echo "    \ \ / /| |_) |  \| |"
-echo "     \ V / |  __/| |\  |"
-echo "      \_/  |_|   |_| \_|"
-echo
-echo
 #--------------------------------------------------------------------------------------------------
-# Change file name to meet your needs
+# Change fav file name to meet your needs
 fav_file="$HOME/.vpnfavs"
+#set PGP encrypted auth_file, or leave blank for manually entering openvpn credentials
+global_pgp_auth_file="$HOME/.vpnauth.gpg"
 #--------------------------------------------------------------------------------------------------
-if [ -f $fav_file ];
-then
-        echo "Reading vpn configurations from file \"$fav_file\"..."
-        readarray favs < $fav_file
-        echo "Available VPN connections:"
-        echo
-        if ((${#favs[@]} > 0));
+#--------------------------------------------------------------------------------------------------
+
+function getPGPAuthFileNameForConfiguration(){
+    configFile=$1
+    authFile="$configFile.vpnauth.gpg"
+    fallback=$2
+    if [ -f $authFile ];
+    then
+        echo $authFile;
+    else
+        if [ -f $fallback ];
         then
-                i=0
-                for fav in "${favs[@]}"
-                do
-                    echo -n "$i) $fav"
-                    i=$((i+1))
-                done
-                echo
-                index_output="0"
-                if (($i > 1));
-                then
-                        index_output=(0-$(($i-1)))
-                fi
-                read -p "Please choose a VPN configuration to use ($index_output): " number
-
-                vpn_config="${favs[number]}"
-                echo
-                echo "Connecting with openvpn configuration $vpn_config"
-                sudo openvpn $vpn_config
+            echo $fallback;
         else
-                echo "Error: No vpn configuration found in file $fav_file"
-                echo "Please fill the file \"$fav_file\" with one *.ovpn filename per line."
-                exit 1;
+            echo ""
         fi
-else
-        echo "Error: File \"$fav_file\" not found."
-        echo "Please create a file \"$fav_file\" containing one *.ovpn filename per line."
-        exit 2;
-fi
+    fi
+}
 
+function getCredentialsFromAuthFile(){
+    authFile=$1
+    if [ -f $authFile ];
+    then
+        echo $(eval "gpg2 -dq $authFile")
+    else
+        echo "Error: File \"$authFile\" not found."
+        exit 3
+    fi
+}
+
+function printBanner(){
+    echo
+    echo "  __     ______  _   _  "
+    echo "   \ \   / /  _ \| \ | |"
+    echo "    \ \ / /| |_) |  \| |"
+    echo "     \ V / |  __/| |\  |"
+    echo "      \_/  |_|   |_| \_| 0.1"
+    echo
+    echo
+}
+
+function connect(){
+    configFile=$1
+    username=$2
+    password=$3
+    echo ""
+    echo "Connecting with openvpn configuration $configFile"
+    #Connecting to the VPN
+    if [[ $password ]];
+    then
+        eval "sudo ./runopenvpn.expect $configFile $username $password"
+    else
+        sudo openvpn --config $configFile --auth-user-pass
+    fi
+}
+
+function main(){
+    printBanner
+    if [ -f $fav_file ];
+    then
+            echo "Reading vpn configurations from file \"$fav_file\"..."
+            readarray favs < $fav_file
+            echo "Available VPN connections:"
+            echo
+            if ((${#favs[@]} > 0));
+            then
+                    #printing a prompt for all known configurations
+                    i=0
+                    for fav in "${favs[@]}"
+                    do
+                        echo -n "$i) $fav"
+                        i=$((i+1))
+                    done
+                    echo
+                    index_output="0"
+                    if (($i > 1));
+                    then
+                        index_output=(0-$(($i-1)))
+                    fi
+                    read -p "Please choose a VPN configuration to use ($index_output): " number
+                    vpn_config="${favs[number]}"
+                    echo "Using $vpn_config"
+
+                    # checking if we should read stored credentials from a file
+                    auth_file=$(getPGPAuthFileNameForConfiguration $vpn_config $global_pgp_auth_file)
+                    if [[ $auth_file ]];
+                    then
+                        echo "Reading credentials from file $auth_file"
+                    else
+                        echo "Reading credentials from HID"
+                    fi
+
+                    #default: empty credentials for user input
+                    credentials=("" "")
+                    if [[ $auth_file ]];
+                    then
+                        #handling for stored credentials using gpg
+                        echo "Please decrypt you VPN credentials..."
+                        credential_content=$(getCredentialsFromAuthFile $auth_file)
+                        #splitting by newline
+                        IFS="
+                        "
+                        read -a credentials <<< "${credential_content}" 
+                    fi
+                
+                    #Connecting to the VPN
+                    connect $vpn_config ${credentials[0]} ${credentials[1]}
+            else
+                    echo "Error: No vpn configuration found in file $fav_file"
+                    echo "Please fill the file \"$fav_file\" with one *.ovpn filename per line."
+                    exit 1;
+            fi
+    else
+            echo "Error: File \"$fav_file\" not found."
+            echo "Please create a file \"$fav_file\" containing one *.ovpn filename per line."
+            exit 2;
+    fi
+}
+
+#--------------------------------------------------------------------------------------------------
+main
 #--------------------------------------------------------------------------------------------------
 #eof

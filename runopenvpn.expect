@@ -1,0 +1,8 @@
+#!/usr/bin/expect
+spawn openvpn --config [lindex $argv 0] --auth-user-pass
+expect "Enter Auth Username:"
+send [lindex $argv 1]\r
+expect "Enter Auth Password:"
+send [lindex $argv 2]\r
+interact
+
