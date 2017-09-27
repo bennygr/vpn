@@ -42,4 +42,4 @@ If no authentication file was found at all, OpenVPN will prompt for credentials.
 
 ## Limitations 
 
-Although VPN can handle PGP to let you store your credentials in a save place, the username and password are passed to OpenVPN via and expect script as command line arguments. Therefore the credentials could easily be obtained from procfs and ps(1). **Know your threat model**
+Although VPN supports PGP to let you store your credentials in a save place, the username and password are passed to OpenVPN via an expect script as command line arguments. Therefore the credentials could easily be obtained from procfs and ps(1). **Know your threat model**
